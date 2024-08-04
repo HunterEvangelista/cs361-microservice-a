@@ -1,41 +1,66 @@
-from os import error
 from ebaysdk.finding import Connection as Finding
-from ebaysdk.exception import ConnectionError
-from flask import Flask, request, Response
+from flask import Flask, request, Response, jsonify
+from dotenv import load_dotenv
+import os
 
-
-# need to establish the route and http server
-# process json with request
-# get format from member
-#
-# query param: card_name
-# url /search
-#
 app = Flask(__name__)
+load_dotenv()
 
-counter = {}
 
 @app.route("/search")
 def handle_search():
     card = request.args.get("card_name")
-    # need to get cards
-    # need to constrain to top 10
-    # need to determine which information to return
-    # need to ensure they're pokemon cards
-    # need to handle no results
     req = Finding(config_file="ebay.yaml")
-    response = req.execute("findItemsAdvanced", {"keywords": card})
-    resp = req.response.dict()
-    if resp["searchResult"]["_count"] <= 0:
-        return Response("{'a':'b'}", status=404, mimetype="application/json")
-    cards = resp["searchResult"]["item"]
-    for pc in cards:
-        print(pc["title"])
-        cat_id = pc["primaryCategory"]["categoryId"]
-        if cat_id in counter:
-            counter[cat_id] += 1
-        else:
-            counter[cat_id] = 1
 
-    print(counter)
-    return f"{cards}"
+    # keywords can be separated by a space
+    # see here: https://developer.ebay.com/api-docs/user-guides/static/finding-user-guide/finding-searching-by-keywords.html
+    response = req.execute("findItemsAdvanced", {
+        "keywords": card,
+        "categoryId": "183454",
+        "sortOrder": "CurrentPriceHighest"
+    })
+    response_dict = response.dict()
+    print(response_dict)
+    if response_dict["searchResult"]["_count"] == "0":
+        return Response("{'error':'No card found'}", status=404, mimetype="application/json")
+
+    # process cards
+    cards = response_dict["searchResult"]["item"]
+    return_object = {
+        "code": 200,
+        "content": [],
+    }
+
+    count = 0
+    for pc in cards:
+        return_object["content"].append(
+            {
+                "id": pc["itemId"],
+                "title": pc["title"],
+                "price": pc["sellingStatus"]["convertedCurrentPrice"]["value"],
+                "listingType": pc["listingInfo"]["listingType"],
+                "listingURL": pc["viewItemURL"],
+            }
+        )
+
+        # handle watches
+        if "watchCount" in pc["listingInfo"].keys():
+            return_object["content"][-1]["watches"] = pc["listingInfo"]["watchCount"]
+
+        # handle if there are bids
+        if "bidCount" in pc["sellingStatus"].keys():
+            return_object["content"][-1]["bidCount"] = pc["sellingStatus"]["bidCount"]
+
+        # handle if there is a buy it now option
+        if pc["listingInfo"]["buyItNowAvailable"] == "true":
+            return_object["content"][-1]["buyItNowPrice"] = pc["listingInfo"]["buyItNowPrice"]["value"]
+
+        count += 1
+        if count == 10:
+            break
+
+    return jsonify(return_object)
+
+
+if __name__ == "__main__":
+    app.run(port=os.getenv("PORT"), debug=True)
