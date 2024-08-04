@@ -1,7 +1,7 @@
 from os import error
 from ebaysdk.finding import Connection as Finding
 from ebaysdk.exception import ConnectionError
-from flask import Flask, request, jsonify
+from flask import Flask, request, Response
 
 
 # need to establish the route and http server
@@ -13,6 +13,7 @@ from flask import Flask, request, jsonify
 #
 app = Flask(__name__)
 
+counter = {}
 
 @app.route("/search")
 def handle_search():
@@ -23,15 +24,18 @@ def handle_search():
     # need to ensure they're pokemon cards
     # need to handle no results
     req = Finding(config_file="ebay.yaml")
-    res = req.execute("findItemsAdvanced", {"keywords": card})
-    print(req.response.dict())
-    return f"{req.response.dict()}"
+    response = req.execute("findItemsAdvanced", {"keywords": card})
+    resp = req.response.dict()
+    if resp["searchResult"]["_count"] <= 0:
+        return Response("{'a':'b'}", status=404, mimetype="application/json")
+    cards = resp["searchResult"]["item"]
+    for pc in cards:
+        print(pc["title"])
+        cat_id = pc["primaryCategory"]["categoryId"]
+        if cat_id in counter:
+            counter[cat_id] += 1
+        else:
+            counter[cat_id] = 1
 
-    # try:
-    # api = Finding(config_file="ebay.yaml")
-    # response = api.execute("findItemsAdvanced", {"keywords": "Python"})
-    # res_dict = response[0]
-    # print(res_dict)
-    # except ConnectionError as e:
-    # print(e)
-    # print(e.response.dict())
+    print(counter)
+    return f"{cards}"
