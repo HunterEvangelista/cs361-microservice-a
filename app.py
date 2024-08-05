@@ -14,15 +14,16 @@ def handle_search():
 
     # keywords can be separated by a space
     # see here: https://developer.ebay.com/api-docs/user-guides/static/finding-user-guide/finding-searching-by-keywords.html
-    response = req.execute("findItemsAdvanced", {
-        "keywords": card,
-        "categoryId": "183454",
-        "sortOrder": "CurrentPriceHighest"
-    })
+    response = req.execute(
+        "findItemsAdvanced",
+        {"keywords": card, "categoryId": "183454", "sortOrder": "CurrentPriceHighest"},
+    )
     response_dict = response.dict()
     print(response_dict)
     if response_dict["searchResult"]["_count"] == "0":
-        return Response("{'error':'No card found'}", status=404, mimetype="application/json")
+        return Response(
+            "{'error':'No card found'}", status=404, mimetype="application/json"
+        )
 
     # process cards
     cards = response_dict["searchResult"]["item"]
@@ -40,28 +41,27 @@ def handle_search():
                 "price": pc["sellingStatus"]["convertedCurrentPrice"]["value"],
                 "listingType": pc["listingInfo"]["listingType"],
                 "listingURL": pc["viewItemURL"],
-                "listingDetails": []
+                "listingDetails": [],
             }
         )
 
         # handle watches
         if "watchCount" in pc["listingInfo"].keys():
-            return_object["content"][-1]["listingDetails"].append({
-                "watchCount": pc["listingInfo"]["watchCount"]
-            })
-
+            return_object["content"][-1]["listingDetails"].append(
+                {"watchCount": pc["listingInfo"]["watchCount"]}
+            )
 
         # handle if there are bids
         if "bidCount" in pc["sellingStatus"].keys():
-            return_object["content"][-1]["listingDetails"].append({
-                "bidCount": pc["sellingStatus"]["watchCount"]
-            })
+            return_object["content"][-1]["listingDetails"].append(
+                {"bidCount": pc["sellingStatus"]["bidCount"]}
+            )
 
         # handle if there is a buy it now option
         if pc["listingInfo"]["buyItNowAvailable"] == "true":
-            return_object["content"][-1]["listingDetails"].append({
-                "buyItNowPrice": pc["listingInfo"]["butItNowPrice"]["value"]
-            })
+            return_object["content"][-1]["listingDetails"].append(
+                {"buyItNowPrice": pc["listingInfo"]["buyItNowPrice"]["value"]}
+            )
 
         count += 1
         if count == 10:
@@ -71,4 +71,4 @@ def handle_search():
 
 
 if __name__ == "__main__":
-    app.run(port=os.getenv("PORT"), debug=True)
+    app.run(port=os.getenv("PORT"), debug=False)
