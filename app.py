@@ -40,20 +40,28 @@ def handle_search():
                 "price": pc["sellingStatus"]["convertedCurrentPrice"]["value"],
                 "listingType": pc["listingInfo"]["listingType"],
                 "listingURL": pc["viewItemURL"],
+                "listingDetails": []
             }
         )
 
         # handle watches
         if "watchCount" in pc["listingInfo"].keys():
-            return_object["content"][-1]["watches"] = pc["listingInfo"]["watchCount"]
+            return_object["content"][-1]["listingDetails"].append({
+                "watchCount": pc["listingInfo"]["watchCount"]
+            })
+
 
         # handle if there are bids
         if "bidCount" in pc["sellingStatus"].keys():
-            return_object["content"][-1]["bidCount"] = pc["sellingStatus"]["bidCount"]
+            return_object["content"][-1]["listingDetails"].append({
+                "bidCount": pc["sellingStatus"]["watchCount"]
+            })
 
         # handle if there is a buy it now option
         if pc["listingInfo"]["buyItNowAvailable"] == "true":
-            return_object["content"][-1]["buyItNowPrice"] = pc["listingInfo"]["buyItNowPrice"]["value"]
+            return_object["content"][-1]["listingDetails"].append({
+                "buyItNowPrice": pc["listingInfo"]["butItNowPrice"]["value"]
+            })
 
         count += 1
         if count == 10:
